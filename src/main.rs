@@ -1,8 +1,5 @@
-// Copyright 2021 Google, inc.
-// SPDX-License-identifier: Apache-2.0
-
 use git2::{Error, Repository};
-use std::{cmp::max, collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf};
 
 fn main() -> Result<(), Error> {
     let mut mtimes: HashMap<PathBuf, (i64, String)> = HashMap::new();
@@ -13,6 +10,7 @@ fn main() -> Result<(), Error> {
     for commit_id in revwalk {
         let commit_id = commit_id?;
         let commit = repo.find_commit(commit_id)?;
+        println!("commit {}", commit.id());
         // Ignore merge commits (2+ parents) because that's what 'git whatchanged' does.
         // Ignore commit with 0 parents (initial commit) because there's nothing to diff against
         if commit.parent_count() == 1 {
@@ -22,14 +20,18 @@ fn main() -> Result<(), Error> {
             let diff = repo.diff_tree_to_tree(Some(&prev_tree), Some(&tree), None)?;
             for delta in diff.deltas() {
                 let file_path = delta.new_file().path().unwrap();
+                println!("file_path = {:?}", file_path);
+                println!("commit = {:?}", commit.id());
                 let file_mod_time = commit.time();
                 let unix_time = file_mod_time.seconds();
                 let sha = commit.id().to_string();
                 mtimes
                     .entry(file_path.to_owned())
                     .and_modify(|(t, s)| {
-                        *t = std::cmp::max(*t, unix_time);
-                        *s = sha.to_owned();
+                        if unix_time > *t {
+                            *t = unix_time;
+                            *s = sha.clone();
+                        }
                     })
                     .or_insert((unix_time, sha));
             }
