@@ -1,5 +1,5 @@
 use git2::{Error, Repository};
-use std::path::PathBuf;
+use std::{env, path::PathBuf};
 
 fn get_last_commit_for_file(
     repo: &Repository,
@@ -47,8 +47,15 @@ fn get_last_commit_for_file(
 }
 
 fn main() -> Result<(), Error> {
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 2 {
+        eprintln!("Error: Please specify a file path as the first argument");
+        return Ok(());
+    }
+
     let repo = Repository::open(".")?;
-    let file_path = PathBuf::from("src/main.rs");
+    // let file_path = PathBuf::from("src/main.rs");
+    let file_path = PathBuf::from(&args[1]);
     let (sha, description, _) = get_last_commit_for_file(&repo, &file_path)?;
 
     println!(
