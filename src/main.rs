@@ -5,7 +5,7 @@ use git2::{Error, Repository};
 use std::{cmp::max, collections::HashMap, path::PathBuf};
 
 fn main() -> Result<(), Error> {
-    let mut mtimes: HashMap<PathBuf, i64> = HashMap::new();
+    let mut mtimes: HashMap<PathBuf, (i64, String)> = HashMap::new();
     let repo = Repository::open(".")?;
     let mut revwalk = repo.revwalk()?;
     revwalk.set_sorting(git2::Sort::TIME)?;
@@ -24,15 +24,19 @@ fn main() -> Result<(), Error> {
                 let file_path = delta.new_file().path().unwrap();
                 let file_mod_time = commit.time();
                 let unix_time = file_mod_time.seconds();
+                let sha = commit.id().to_string();
                 mtimes
                     .entry(file_path.to_owned())
-                    .and_modify(|t| *t = max(*t, unix_time))
-                    .or_insert(unix_time);
+                    .and_modify(|(t, s)| {
+                        *t = std::cmp::max(*t, unix_time);
+                        *s = sha.to_owned();
+                    })
+                    .or_insert((unix_time, sha));
             }
         }
     }
     for (path, time) in mtimes.iter() {
-        println!("{:?}: {}", path, time);
+        println!("{:?}: {:?}", path, time);
     }
     Ok(())
 }
